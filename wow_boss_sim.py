@@ -179,8 +179,8 @@ class WoWBossSimulation:
                         dist = math.sqrt((x - self.arena.center_x)**2 + 
                                        (y - self.arena.center_y)**2)
                         if dist < self.arena.radius - STAR_RADIUS:
-                            # Alternate between clockwise and counter-clockwise
-                            clockwise = len(self.stars) % 2 == 0
+                            # First 3 are clockwise (blue), next 3 are counter-clockwise (purple)
+                            clockwise = len(self.stars) < 3
                             self.stars.append(Star(x, y, clockwise))
     
     def reset(self):
