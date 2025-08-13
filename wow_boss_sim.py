@@ -7,12 +7,17 @@ from enum import Enum
 pygame.init()
 
 # Constants
-WINDOW_WIDTH = 800
+WINDOW_WIDTH = 1000  # Increased to fit controls
 WINDOW_HEIGHT = 800
 ARENA_RADIUS = 350
-STAR_RADIUS = ARENA_RADIUS * 0.065  # 13% of arena diameter (30% bigger than 10%)
-RING_WIDTH = STAR_RADIUS * 1.2  # Even thicker rings
 FPS = 60
+
+# Default adjustable parameters
+DEFAULT_STAR_SIZE = 0.065  # Multiplier of arena radius
+DEFAULT_RING_WIDTH = 1.2  # Multiplier of star radius
+DEFAULT_ROTATION_SPEED = 0.05  # Radians per second
+DEFAULT_RING_START_OFFSET = 1.5  # Multiplier of star radius
+DEFAULT_RING_SPACING = 2.0  # Multiplier of star radius
 
 # Colors
 BLACK = (0, 0, 0)
@@ -28,10 +33,25 @@ class GameState(Enum):
     PLAYING = 2
     PAUSED = 3
 
+class SimulationParams:
+    def __init__(self):
+        self.star_size = DEFAULT_STAR_SIZE
+        self.ring_width = DEFAULT_RING_WIDTH
+        self.rotation_speed = DEFAULT_ROTATION_SPEED
+        self.ring_start_offset = DEFAULT_RING_START_OFFSET
+        self.ring_spacing = DEFAULT_RING_SPACING
+        
+    def get_star_radius(self):
+        return ARENA_RADIUS * self.star_size
+        
+    def get_ring_width(self):
+        return self.get_star_radius() * self.ring_width
+
 class Ring:
-    def __init__(self, star):
+    def __init__(self, star, params):
         self.star = star
-        self.base_radius = STAR_RADIUS * 1.5  # Initial ring radius, slightly outside star
+        self.params = params
+        self.base_radius = params.get_star_radius() * params.ring_start_offset
         self.expansion_level = 0  # How many times the ring has expanded
         self.warning_duration = 2.0  # 2 seconds warning phase
         self.damage_duration = 0.5  # 0.5 seconds damage phase
@@ -49,7 +69,7 @@ class Ring:
             
     def get_radius(self):
         # Each expansion adds more distance
-        return self.base_radius + (self.expansion_level * STAR_RADIUS * 2)
+        return self.base_radius + (self.expansion_level * self.params.get_star_radius() * self.params.ring_spacing)
     
     def get_phase_and_alpha(self, current_time, simulation_start_time):
         # Calculate time since this ring reached current position
@@ -81,19 +101,20 @@ class Ring:
             
         pygame.draw.circle(ring_surface, color_with_alpha, 
                          (int(self.star.x), int(self.star.y)), 
-                         int(radius), int(RING_WIDTH))
+                         int(radius), int(self.params.get_ring_width()))
         
         screen.blit(ring_surface, (0, 0))
 
 class Star:
-    def __init__(self, x, y, clockwise=True):
+    def __init__(self, x, y, clockwise, params):
         self.start_x = x
         self.start_y = y
         self.x = x
         self.y = y
         self.clockwise = clockwise
+        self.params = params
         self.angle = math.atan2(y - WINDOW_HEIGHT//2, x - WINDOW_WIDTH//2)
-        self.ring = Ring(self)  # Each star has one ring
+        self.ring = Ring(self, params)  # Each star has one ring
         
     def update(self, current_time, is_playing, simulation_start_time):
         if not is_playing:
@@ -102,11 +123,10 @@ class Star:
         # No delay - start immediately
             
         # Rotate the star
-        rotation_speed = 0.05  # radians per second (much slower rotation)
         if self.clockwise:
-            self.angle += rotation_speed / FPS
+            self.angle += self.params.rotation_speed / FPS
         else:
-            self.angle -= rotation_speed / FPS
+            self.angle -= self.params.rotation_speed / FPS
             
         # Update position based on angle
         center_x = WINDOW_WIDTH // 2
@@ -122,20 +142,21 @@ class Star:
     def draw(self, screen):
         # Draw the background circle first
         circle_color = BLUE if self.clockwise else PURPLE
-        circle_radius = STAR_RADIUS * 1.3  # Slightly larger than the star
+        star_radius = self.params.get_star_radius()
+        circle_radius = star_radius * 1.3  # Slightly larger than the star
         pygame.draw.circle(screen, circle_color, (int(self.x), int(self.y)), int(circle_radius))
         
         # Draw the star on top
         points = []
         for i in range(5):
             angle = -math.pi/2 + (i * 2 * math.pi / 5)
-            outer_x = self.x + STAR_RADIUS * math.cos(angle)
-            outer_y = self.y + STAR_RADIUS * math.sin(angle)
+            outer_x = self.x + star_radius * math.cos(angle)
+            outer_y = self.y + star_radius * math.sin(angle)
             points.append((outer_x, outer_y))
             
             angle = -math.pi/2 + ((i + 0.5) * 2 * math.pi / 5)
-            inner_x = self.x + (STAR_RADIUS * 0.4) * math.cos(angle)
-            inner_y = self.y + (STAR_RADIUS * 0.4) * math.sin(angle)
+            inner_x = self.x + (star_radius * 0.4) * math.cos(angle)
+            inner_y = self.y + (star_radius * 0.4) * math.sin(angle)
             points.append((inner_x, inner_y))
         
         pygame.draw.polygon(screen, YELLOW, points)
@@ -172,9 +193,23 @@ class WoWBossSimulation:
         self.state = GameState.SETUP
         self.simulation_start_time = 0
         
+        # Simulation parameters
+        self.params = SimulationParams()
+        
+        # UI state
+        self.selected_param = 0
+        self.param_names = [
+            ("Star Size", "star_size", 0.01, 0.2, 0.005),
+            ("Ring Width", "ring_width", 0.5, 3.0, 0.1),
+            ("Rotation Speed", "rotation_speed", 0.01, 0.2, 0.01),
+            ("Ring Start Offset", "ring_start_offset", 0.5, 3.0, 0.1),
+            ("Ring Spacing", "ring_spacing", 1.0, 5.0, 0.2)
+        ]
+        
         # Fonts
         self.font = pygame.font.Font(None, 36)
         self.small_font = pygame.font.Font(None, 24)
+        self.tiny_font = pygame.font.Font(None, 20)
         
     def handle_events(self):
         for event in pygame.event.get():
@@ -193,6 +228,14 @@ class WoWBossSimulation:
                         self.state = GameState.PLAYING
                 elif event.key == pygame.K_r:
                     self.reset()
+                elif event.key == pygame.K_UP:
+                    self.selected_param = (self.selected_param - 1) % len(self.param_names)
+                elif event.key == pygame.K_DOWN:
+                    self.selected_param = (self.selected_param + 1) % len(self.param_names)
+                elif event.key == pygame.K_LEFT:
+                    self.adjust_param(-1)
+                elif event.key == pygame.K_RIGHT:
+                    self.adjust_param(1)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1 and self.state == GameState.SETUP:
                     if len(self.stars) < 6:
@@ -200,10 +243,22 @@ class WoWBossSimulation:
                         # Check if click is within arena
                         dist = math.sqrt((x - self.arena.center_x)**2 + 
                                        (y - self.arena.center_y)**2)
-                        if dist < self.arena.radius - STAR_RADIUS:
+                        if dist < self.arena.radius - self.params.get_star_radius():
                             # First 3 are clockwise (blue), next 3 are counter-clockwise (purple)
                             clockwise = len(self.stars) < 3
-                            self.stars.append(Star(x, y, clockwise))
+                            self.stars.append(Star(x, y, clockwise, self.params))
+    
+    def adjust_param(self, direction):
+        name, attr, min_val, max_val, step = self.param_names[self.selected_param]
+        current = getattr(self.params, attr)
+        new_val = current + (step * direction)
+        new_val = max(min_val, min(max_val, new_val))
+        setattr(self.params, attr, new_val)
+        
+        # Update existing stars and rings if needed
+        for star in self.stars:
+            star.params = self.params
+            star.ring.params = self.params
     
     def reset(self):
         self.stars = []
@@ -241,11 +296,12 @@ class WoWBossSimulation:
             instructions = [
                 "Click to place stars",
                 "Space to start when all 6 are placed",
-                "R to reset"
+                "R to reset",
+                "Arrow keys to adjust parameters"
             ]
             for i, instruction in enumerate(instructions):
                 text = self.small_font.render(instruction, True, WHITE)
-                self.screen.blit(text, (10, WINDOW_HEIGHT - 80 + i * 25))
+                self.screen.blit(text, (10, WINDOW_HEIGHT - 100 + i * 25))
                 
         elif self.state == GameState.PLAYING:
             text = self.font.render("Simulation Running", True, WHITE)
@@ -271,7 +327,61 @@ class WoWBossSimulation:
                 text = self.small_font.render(instruction, True, WHITE)
                 self.screen.blit(text, (10, WINDOW_HEIGHT - 55 + i * 25))
         
+        # Draw parameter controls
+        self.draw_parameters()
+        
         pygame.display.flip()
+    
+    def draw_parameters(self):
+        # Draw parameter panel background
+        panel_x = ARENA_RADIUS * 2 + 100
+        panel_y = 50
+        panel_width = WINDOW_WIDTH - panel_x - 20
+        panel_height = 300
+        
+        pygame.draw.rect(self.screen, GRAY, (panel_x, panel_y, panel_width, panel_height), 2)
+        
+        # Title
+        title = self.small_font.render("PARAMETERS", True, WHITE)
+        self.screen.blit(title, (panel_x + 10, panel_y + 10))
+        
+        # Draw each parameter
+        for i, (name, attr, min_val, max_val, step) in enumerate(self.param_names):
+            y_offset = panel_y + 50 + i * 45
+            
+            # Highlight selected parameter
+            if i == self.selected_param:
+                pygame.draw.rect(self.screen, (100, 100, 100), 
+                               (panel_x + 5, y_offset - 5, panel_width - 10, 40))
+            
+            # Parameter name
+            text = self.tiny_font.render(name + ":", True, WHITE)
+            self.screen.blit(text, (panel_x + 10, y_offset))
+            
+            # Current value
+            value = getattr(self.params, attr)
+            value_text = self.tiny_font.render(f"{value:.3f}", True, YELLOW)
+            self.screen.blit(value_text, (panel_x + 10, y_offset + 20))
+            
+            # Value bar
+            bar_x = panel_x + 80
+            bar_y = y_offset + 10
+            bar_width = 100
+            bar_height = 20
+            
+            # Background bar
+            pygame.draw.rect(self.screen, (50, 50, 50), 
+                           (bar_x, bar_y, bar_width, bar_height))
+            
+            # Filled portion
+            fill_percent = (value - min_val) / (max_val - min_val)
+            fill_width = int(bar_width * fill_percent)
+            pygame.draw.rect(self.screen, BLUE if i == self.selected_param else (100, 100, 200), 
+                           (bar_x, bar_y, fill_width, bar_height))
+            
+            # Border
+            pygame.draw.rect(self.screen, WHITE, 
+                           (bar_x, bar_y, bar_width, bar_height), 1)
     
     def run(self):
         while self.running:
