@@ -7,9 +7,9 @@ from enum import Enum
 pygame.init()
 
 # Constants
-WINDOW_WIDTH = 1000  # Increased to fit controls
-WINDOW_HEIGHT = 800
-ARENA_RADIUS = 350
+WINDOW_WIDTH = 1194  # Match plan.png width
+WINDOW_HEIGHT = 671  # Match plan.png height
+ARENA_RADIUS = 300  # Adjusted for new window size
 FPS = 60
 
 # Default adjustable parameters
@@ -166,20 +166,32 @@ class Star:
 
 class Arena:
     def __init__(self):
-        self.center_x = WINDOW_WIDTH // 2
+        # Position arena slightly to the left to make room for controls
+        self.center_x = 400
         self.center_y = WINDOW_HEIGHT // 2
         self.radius = ARENA_RADIUS
         
-    def draw(self, screen):
-        # Draw arena border
-        pygame.draw.circle(screen, WHITE, (self.center_x, self.center_y), 
-                         self.radius, 3)
+        # Load the background image
+        try:
+            self.background = pygame.image.load("plan.png")
+            # Use image at original resolution
+        except:
+            self.background = None
+            print("Could not load plan.png, using default arena")
         
-        # Draw arena floor with slight transparency
-        floor_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.circle(floor_surface, (*GRAY, 30), 
-                         (self.center_x, self.center_y), self.radius)
-        screen.blit(floor_surface, (0, 0))
+    def draw(self, screen):
+        if self.background:
+            # Draw the background image at (0, 0)
+            screen.blit(self.background, (0, 0))
+        else:
+            # Fallback to original arena if image not loaded
+            pygame.draw.circle(screen, WHITE, (self.center_x, self.center_y), 
+                             self.radius, 3)
+            
+            floor_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+            pygame.draw.circle(floor_surface, (*GRAY, 30), 
+                             (self.center_x, self.center_y), self.radius)
+            screen.blit(floor_surface, (0, 0))
 
 class WoWBossSimulation:
     def __init__(self):
@@ -334,7 +346,7 @@ class WoWBossSimulation:
     
     def draw_parameters(self):
         # Draw parameter panel background
-        panel_x = ARENA_RADIUS * 2 + 100
+        panel_x = 850
         panel_y = 50
         panel_width = WINDOW_WIDTH - panel_x - 20
         panel_height = 300
