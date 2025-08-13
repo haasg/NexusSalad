@@ -33,14 +33,16 @@ class Ring:
         self.star = star
         self.base_radius = STAR_RADIUS * 1.5  # Initial ring radius, slightly outside star
         self.expansion_level = 0  # How many times the ring has expanded
-        self.expansion_interval = 3.0  # Expand every 3 seconds
-        self.last_expansion_time = 0
+        self.warning_duration = 2.0  # 2 seconds warning phase
+        self.damage_duration = 0.5  # 0.5 seconds damage phase
+        self.cycle_duration = self.warning_duration + self.damage_duration  # Total 2.5 seconds per cycle
+        self.expansion_interval = 3.0  # Move to next position every 3 seconds
         
     def update(self, current_time, simulation_start_time):
         # Calculate time since simulation started
         elapsed = current_time - simulation_start_time
         
-        # Check if it's time to expand
+        # Check if it's time to expand to next position
         expected_expansions = int(elapsed / self.expansion_interval)
         if expected_expansions > self.expansion_level:
             self.expansion_level = expected_expansions
@@ -48,15 +50,35 @@ class Ring:
     def get_radius(self):
         # Each expansion adds more distance
         return self.base_radius + (self.expansion_level * STAR_RADIUS * 2)
+    
+    def get_phase_and_alpha(self, current_time, simulation_start_time):
+        # Calculate time since this ring reached current position
+        time_at_position = (current_time - simulation_start_time) - (self.expansion_level * self.expansion_interval)
+        
+        # Determine which phase of the cycle we're in
+        cycle_time = time_at_position % self.cycle_duration
+        
+        if cycle_time < self.warning_duration:
+            # Warning phase - purple ring on ground
+            return "warning", 120
+        else:
+            # Damage phase - bright red/orange flash
+            return "damage", 200
             
-    def draw(self, screen):
+    def draw(self, screen, current_time, simulation_start_time):
         # Draw the ring at its current expansion level
         ring_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         
         radius = self.get_radius()
+        phase, alpha = self.get_phase_and_alpha(current_time, simulation_start_time)
         
-        # Draw the ring with some transparency
-        color_with_alpha = (*PURPLE, 180)
+        if phase == "warning":
+            # Purple warning ring
+            color_with_alpha = (*PURPLE, alpha)
+        else:
+            # Red damage flash
+            color_with_alpha = (255, 0, 0, alpha)  # Pure red for damage
+            
         pygame.draw.circle(ring_surface, color_with_alpha, 
                          (int(self.star.x), int(self.star.y)), 
                          int(radius), int(RING_WIDTH))
@@ -118,8 +140,8 @@ class Star:
         
         pygame.draw.polygon(screen, YELLOW, points)
         
-    def draw_ring(self, screen):
-        self.ring.draw(screen)
+    def draw_ring(self, screen, current_time, simulation_start_time):
+        self.ring.draw(screen, current_time, simulation_start_time)
 
 class Arena:
     def __init__(self):
@@ -202,8 +224,9 @@ class WoWBossSimulation:
         self.arena.draw(self.screen)
         
         # Draw rings first (so they appear under stars)
+        current_time = time.time()
         for star in self.stars:
-            star.draw_ring(self.screen)
+            star.draw_ring(self.screen, current_time, self.simulation_start_time)
         
         # Draw stars
         for star in self.stars:
