@@ -2,29 +2,60 @@
 
 A Python simulation of a World of Warcraft-style boss fight mechanic featuring rotating stars and expanding damage rings.
 
-## Requirements
+## Quick Start (No Python Required)
 
+### For Users - Download and Run
+1. Download the latest release for your platform from the Releases page
+2. Extract the file (if zipped)
+3. Double-click to run:
+   - **Windows**: `WoW_Boss_Simulator.exe`
+   - **macOS**: `WoW Boss Simulator.app`
+   - **Linux**: `./WoW_Boss_Simulator`
+
+## For Developers
+
+### Requirements
 - Python 3.x
 - Pygame
 
-## Installation
-
+### Installation
 1. Create a virtual environment:
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-2. Install pygame:
+2. Install dependencies:
 ```bash
-pip install pygame
+pip install -r requirements.txt
 ```
 
-## Running the Simulation
-
+### Running from Source
 ```bash
 python wow_boss_sim.py
 ```
+
+### Building Standalone Executable
+
+#### Automatic Build (Recommended)
+- **macOS/Linux**: `./build.sh`
+- **Windows**: `build.bat`
+
+The executable will be created in the `dist/` folder.
+
+#### Manual Build
+```bash
+pip install pyinstaller
+pyinstaller wow_boss_sim.spec
+```
+
+### Distribution
+After building, you can distribute the following files:
+- **Windows**: `dist/WoW_Boss_Simulator.exe` (single file, ~40MB)
+- **macOS**: `dist/WoW Boss Simulator.app` (app bundle, ~45MB)
+- **Linux**: `dist/WoW_Boss_Simulator` (single file, ~40MB)
+
+No Python installation or additional files required!
 
 ## How to Use
 
