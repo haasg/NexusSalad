@@ -13,11 +13,11 @@ ARENA_RADIUS = 300  # Adjusted for new window size
 FPS = 60
 
 # Default adjustable parameters
-DEFAULT_STAR_SIZE = 0.065  # Multiplier of arena radius
-DEFAULT_RING_WIDTH = 1.2  # Multiplier of star radius
+DEFAULT_STAR_SIZE = 0.090  # Multiplier of arena radius
+DEFAULT_RING_WIDTH = 1.1  # Multiplier of star radius
 DEFAULT_ROTATION_SPEED = 0.05  # Radians per second
-DEFAULT_RING_START_OFFSET = 1.5  # Multiplier of star radius
-DEFAULT_RING_SPACING = 2.0  # Multiplier of star radius
+DEFAULT_RING_START_OFFSET = 2.5  # Multiplier of star radius
+DEFAULT_RING_SPACING = 1.0  # Multiplier of star radius
 
 # Colors
 BLACK = (0, 0, 0)
@@ -172,9 +172,10 @@ class Star:
 
 class Arena:
     def __init__(self):
-        # Position arena slightly to the left to make room for controls
-        self.center_x = 400
-        self.center_y = WINDOW_HEIGHT // 2
+        # Center the arena on the actual arena in the background image
+        # Adjusted based on where the arena appears in plan.png
+        self.center_x = 597  # Center of the window (1194/2)
+        self.center_y = 335  # Center of the image (671/2)
         self.radius = ARENA_RADIUS
         
         # Load the background image
