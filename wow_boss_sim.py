@@ -16,7 +16,7 @@ FPS = 60
 DEFAULT_STAR_SIZE = 0.090  # Multiplier of arena radius
 DEFAULT_RING_WIDTH = 1.1  # Multiplier of star radius
 DEFAULT_ROTATION_SPEED = 0.05  # Radians per second
-DEFAULT_RING_START_OFFSET = 2.5  # Multiplier of star radius
+DEFAULT_RING_START_OFFSET = 3.0  # Multiplier of star radius
 DEFAULT_RING_SPACING = 1.0  # Multiplier of star radius
 
 # Colors
@@ -353,10 +353,10 @@ class WoWBossSimulation:
         pygame.display.flip()
     
     def draw_parameters(self):
-        # Draw parameter panel background
-        panel_x = 850
+        # Draw parameter panel background - narrower and anchored to right
+        panel_width = 250  # Fixed narrow width
+        panel_x = WINDOW_WIDTH - panel_width - 10  # 10px from right edge
         panel_y = 50
-        panel_width = WINDOW_WIDTH - panel_x - 20
         panel_height = 300
         
         pygame.draw.rect(self.screen, GRAY, (panel_x, panel_y, panel_width, panel_height), 2)
@@ -386,7 +386,7 @@ class WoWBossSimulation:
             # Value bar
             bar_x = panel_x + 80
             bar_y = y_offset + 10
-            bar_width = 100
+            bar_width = 80  # Narrower bar to fit in smaller panel
             bar_height = 20
             
             # Background bar
