@@ -85,19 +85,25 @@ class Ring:
             # Damage phase - bright red/orange flash
             return "damage", 200
             
-    def draw(self, screen, current_time, simulation_start_time):
+    def draw(self, screen, current_time, simulation_start_time, is_playing):
         # Draw the ring at its current expansion level
         ring_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         
         radius = self.get_radius()
-        phase, alpha = self.get_phase_and_alpha(current_time, simulation_start_time)
         
-        if phase == "warning":
-            # Purple warning ring
-            color_with_alpha = (*PURPLE, alpha)
+        # Only show damage phase if simulation is playing
+        if is_playing:
+            phase, alpha = self.get_phase_and_alpha(current_time, simulation_start_time)
+            
+            if phase == "warning":
+                # Purple warning ring
+                color_with_alpha = (*PURPLE, alpha)
+            else:
+                # Red damage flash
+                color_with_alpha = (255, 0, 0, alpha)  # Pure red for damage
         else:
-            # Red damage flash
-            color_with_alpha = (255, 0, 0, alpha)  # Pure red for damage
+            # When not playing, always show purple rings
+            color_with_alpha = (*PURPLE, 120)
             
         pygame.draw.circle(ring_surface, color_with_alpha, 
                          (int(self.star.x), int(self.star.y)), 
@@ -161,8 +167,8 @@ class Star:
         
         pygame.draw.polygon(screen, YELLOW, points)
         
-    def draw_ring(self, screen, current_time, simulation_start_time):
-        self.ring.draw(screen, current_time, simulation_start_time)
+    def draw_ring(self, screen, current_time, simulation_start_time, is_playing):
+        self.ring.draw(screen, current_time, simulation_start_time, is_playing)
 
 class Arena:
     def __init__(self):
@@ -292,8 +298,9 @@ class WoWBossSimulation:
         
         # Draw rings first (so they appear under stars)
         current_time = time.time()
+        is_playing = self.state == GameState.PLAYING
         for star in self.stars:
-            star.draw_ring(self.screen, current_time, self.simulation_start_time)
+            star.draw_ring(self.screen, current_time, self.simulation_start_time, is_playing)
         
         # Draw stars
         for star in self.stars:
