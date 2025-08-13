@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd /c:*)",
+      "Bash(./build.bat)",
+      "Bash(venvScriptspip install --upgrade pip)",
+      "Bash(venv\\\\Scripts\\\\pip install:*)",
+      "Bash(venv\\\\Scripts\\\\python.exe -m pip install:*)",
+      "Bash(\"venv\\Scripts\\python.exe\" -m pip install pygame --pre)",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(\"venv\\Scripts\\pyinstaller.exe\" wow_boss_sim.spec)",
+      "Bash(dir dist)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
