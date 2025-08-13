@@ -98,7 +98,12 @@ class Star:
         self.ring.update(current_time, simulation_start_time)
     
     def draw(self, screen):
-        # Draw the star
+        # Draw the background circle first
+        circle_color = BLUE if self.clockwise else PURPLE
+        circle_radius = STAR_RADIUS * 1.3  # Slightly larger than the star
+        pygame.draw.circle(screen, circle_color, (int(self.x), int(self.y)), int(circle_radius))
+        
+        # Draw the star on top
         points = []
         for i in range(5):
             angle = -math.pi/2 + (i * 2 * math.pi / 5)
