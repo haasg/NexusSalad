@@ -10,7 +10,12 @@
       "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
       "Bash(\"venv\\\\Scripts\\\\python.exe\":*)",
       "Bash(\"venv\\Scripts\\pyinstaller.exe\" wow_boss_sim.spec)",
-      "Bash(dir dist)"
+      "Bash(dir dist)",
+      "Bash(dir:*)",
+      "Bash(copy plan.png distplan.png)",
+      "Bash(cp:*)",
+      "Bash(\"venv\\Scripts\\pyinstaller.exe\" wow_boss_sim.spec --clean)",
+      "Bash(\"venv\\Scripts\\python.exe\" wow_boss_sim.py)"
     ],
     "deny": [],
     "ask": []

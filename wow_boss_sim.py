@@ -2,6 +2,21 @@ import pygame
 import math
 import time
 from enum import Enum
+import sys
+import os
+import copy
+from collections import deque
+
+# Get the correct path for resources when bundled with PyInstaller
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
 # Initialize Pygame
 pygame.init()
@@ -121,6 +136,22 @@ class Star:
         self.params = params
         self.angle = math.atan2(y - WINDOW_HEIGHT//2, x - WINDOW_WIDTH//2)
         self.ring = Ring(self, params)  # Each star has one ring
+    
+    def get_state(self):
+        """Returns a snapshot of the star's current state"""
+        return {
+            'x': self.x,
+            'y': self.y,
+            'angle': self.angle,
+            'ring_expansion_level': self.ring.expansion_level
+        }
+    
+    def set_state(self, state):
+        """Restores the star to a previous state"""
+        self.x = state['x']
+        self.y = state['y']
+        self.angle = state['angle']
+        self.ring.expansion_level = state['ring_expansion_level']
         
     def update(self, current_time, is_playing, simulation_start_time):
         if not is_playing:
@@ -180,11 +211,13 @@ class Arena:
         
         # Load the background image
         try:
-            self.background = pygame.image.load("plan.png")
+            image_path = resource_path("plan.png")
+            self.background = pygame.image.load(image_path)
             # Use image at original resolution
-        except:
+            print(f"Successfully loaded background from: {image_path}")
+        except Exception as e:
             self.background = None
-            print("Could not load plan.png, using default arena")
+            print(f"Could not load plan.png: {e}, using default arena")
         
     def draw(self, screen):
         if self.background:
@@ -230,6 +263,13 @@ class WoWBossSimulation:
         self.small_font = pygame.font.Font(None, 24)
         self.tiny_font = pygame.font.Font(None, 20)
         
+        # Rewind system
+        self.history = deque(maxlen=600)  # Store up to 10 seconds of history at 60 FPS
+        self.is_rewinding = False
+        self.rewind_index = 0
+        self.current_simulation_time = 0
+        self.rewind_frame_skip = 15  # Default number of frames to skip when rewinding
+        
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -246,15 +286,49 @@ class WoWBossSimulation:
                     elif self.state == GameState.PAUSED:
                         self.state = GameState.PLAYING
                 elif event.key == pygame.K_r:
-                    self.reset()
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        # Shift+R for reset
+                        self.reset()
+                    else:
+                        # R alone for rewind toggle
+                        if self.state in [GameState.PLAYING, GameState.PAUSED] and len(self.history) > 0:
+                            if not self.is_rewinding:
+                                # Start rewinding
+                                self.is_rewinding = True
+                                self.state = GameState.PAUSED
+                                self.rewind_index = len(self.history) - 1
+                            else:
+                                # Stop rewinding and resume from current point
+                                self.is_rewinding = False
+                                # Adjust simulation start time to match rewound position
+                                rewound_time = self.history[self.rewind_index]['time']
+                                self.simulation_start_time = time.time() - rewound_time
                 elif event.key == pygame.K_UP:
-                    self.selected_param = (self.selected_param - 1) % len(self.param_names)
+                    if self.is_rewinding:
+                        # During rewind, UP increases frame skip
+                        self.rewind_frame_skip = min(60, self.rewind_frame_skip + 5)
+                    else:
+                        self.selected_param = (self.selected_param - 1) % len(self.param_names)
                 elif event.key == pygame.K_DOWN:
-                    self.selected_param = (self.selected_param + 1) % len(self.param_names)
+                    if self.is_rewinding:
+                        # During rewind, DOWN decreases frame skip
+                        self.rewind_frame_skip = max(1, self.rewind_frame_skip - 5)
+                    else:
+                        self.selected_param = (self.selected_param + 1) % len(self.param_names)
                 elif event.key == pygame.K_LEFT:
-                    self.adjust_param(-1)
+                    if self.is_rewinding:
+                        # During rewind, LEFT goes back in time
+                        self.rewind_index = max(0, self.rewind_index - self.rewind_frame_skip)
+                        self.restore_from_history(self.rewind_index)
+                    else:
+                        self.adjust_param(-1)
                 elif event.key == pygame.K_RIGHT:
-                    self.adjust_param(1)
+                    if self.is_rewinding:
+                        # During rewind, RIGHT goes forward in time
+                        self.rewind_index = min(len(self.history) - 1, self.rewind_index + self.rewind_frame_skip)
+                        self.restore_from_history(self.rewind_index)
+                    else:
+                        self.adjust_param(1)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1 and self.state == GameState.SETUP:
                     if len(self.stars) < 6:
@@ -283,13 +357,42 @@ class WoWBossSimulation:
         self.stars = []
         self.state = GameState.SETUP
         self.simulation_start_time = 0
+        self.history.clear()
+        self.is_rewinding = False
+        self.rewind_index = 0
+        self.current_simulation_time = 0
+        self.rewind_frame_skip = 15  # Reset to default
+    
+    def save_to_history(self):
+        """Save current game state to history"""
+        if self.state == GameState.PLAYING:
+            state = {
+                'time': time.time() - self.simulation_start_time,
+                'stars': [star.get_state() for star in self.stars]
+            }
+            self.history.append(state)
+    
+    def restore_from_history(self, index):
+        """Restore game state from history at given index"""
+        if 0 <= index < len(self.history):
+            state = self.history[index]
+            for i, star_state in enumerate(state['stars']):
+                if i < len(self.stars):
+                    self.stars[i].set_state(star_state)
+            self.current_simulation_time = state['time']
     
     def update(self):
         current_time = time.time()
         is_playing = self.state == GameState.PLAYING
         
-        for star in self.stars:
-            star.update(current_time, is_playing, self.simulation_start_time)
+        # Save state to history if playing
+        if is_playing and not self.is_rewinding:
+            self.save_to_history()
+        
+        # Update stars only if not rewinding
+        if not self.is_rewinding:
+            for star in self.stars:
+                star.update(current_time, is_playing, self.simulation_start_time)
     
     def draw(self):
         self.screen.fill(BLACK)
@@ -316,7 +419,7 @@ class WoWBossSimulation:
             instructions = [
                 "Click to place stars",
                 "Space to start when all 6 are placed",
-                "R to reset",
+                "Shift+R to reset",
                 "Arrow keys to adjust parameters"
             ]
             for i, instruction in enumerate(instructions):
@@ -324,28 +427,53 @@ class WoWBossSimulation:
                 self.screen.blit(text, (10, WINDOW_HEIGHT - 100 + i * 25))
                 
         elif self.state == GameState.PLAYING:
-            text = self.font.render("Simulation Running", True, WHITE)
-            self.screen.blit(text, (10, 10))
+            if self.is_rewinding:
+                text = self.font.render(f"REWINDING - Frame {self.rewind_index}/{len(self.history)}", True, YELLOW)
+                self.screen.blit(text, (10, 10))
+                time_text = self.small_font.render(f"Time: {self.current_simulation_time:.2f}s", True, YELLOW)
+                self.screen.blit(time_text, (10, 45))
+            else:
+                text = self.font.render("Simulation Running", True, WHITE)
+                self.screen.blit(text, (10, 10))
                 
             instructions = [
                 "Space to pause",
-                "R to reset"
+                "R to start rewind",
+                "Shift+R to reset"
             ]
             for i, instruction in enumerate(instructions):
                 text = self.small_font.render(instruction, True, WHITE)
-                self.screen.blit(text, (10, WINDOW_HEIGHT - 55 + i * 25))
+                self.screen.blit(text, (10, WINDOW_HEIGHT - 80 + i * 25))
                 
         elif self.state == GameState.PAUSED:
-            text = self.font.render("PAUSED", True, WHITE)
-            self.screen.blit(text, (10, 10))
-            
-            instructions = [
-                "Space to resume",
-                "R to reset"
-            ]
-            for i, instruction in enumerate(instructions):
-                text = self.small_font.render(instruction, True, WHITE)
-                self.screen.blit(text, (10, WINDOW_HEIGHT - 55 + i * 25))
+            if self.is_rewinding:
+                text = self.font.render(f"REWIND MODE - Frame {self.rewind_index}/{len(self.history)}", True, YELLOW)
+                self.screen.blit(text, (10, 10))
+                time_text = self.small_font.render(f"Time: {self.current_simulation_time:.2f}s | Frame Skip: {self.rewind_frame_skip}", True, YELLOW)
+                self.screen.blit(time_text, (10, 45))
+                
+                instructions = [
+                    f"LEFT/RIGHT arrows to scrub through time ({self.rewind_frame_skip} frames)",
+                    "UP/DOWN arrows to adjust frame skip (+/- 5)",
+                    "R to exit rewind mode",
+                    "Space to resume from this point",
+                    "Shift+R to reset"
+                ]
+                for i, instruction in enumerate(instructions):
+                    text = self.small_font.render(instruction, True, YELLOW)
+                    self.screen.blit(text, (10, WINDOW_HEIGHT - 130 + i * 25))
+            else:
+                text = self.font.render("PAUSED", True, WHITE)
+                self.screen.blit(text, (10, 10))
+                
+                instructions = [
+                    "Space to resume",
+                    "R to start rewind",
+                    "Shift+R to reset"
+                ]
+                for i, instruction in enumerate(instructions):
+                    text = self.small_font.render(instruction, True, WHITE)
+                    self.screen.blit(text, (10, WINDOW_HEIGHT - 80 + i * 25))
         
         # Draw parameter controls
         self.draw_parameters()
