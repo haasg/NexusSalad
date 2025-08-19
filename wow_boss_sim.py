@@ -30,9 +30,9 @@ FPS = 60
 # Default adjustable parameters
 DEFAULT_STAR_SIZE = 0.090  # Multiplier of arena radius
 DEFAULT_RING_WIDTH = 1.1  # Multiplier of star radius
-DEFAULT_ROTATION_SPEED = 0.05  # Radians per second
+DEFAULT_ROTATION_SPEED = 0.2  # Radians per second
 DEFAULT_RING_START_OFFSET = 3.0  # Multiplier of star radius
-DEFAULT_RING_SPACING = 1.0  # Multiplier of star radius
+DEFAULT_RING_SPACING = 2.5  # Multiplier of star radius
 
 # Colors
 BLACK = (0, 0, 0)
@@ -251,11 +251,11 @@ class WoWBossSimulation:
         # UI state
         self.selected_param = 0
         self.param_names = [
-            ("Star Size", "star_size", 0.01, 0.2, 0.005),
-            ("Ring Width", "ring_width", 0.5, 3.0, 0.1),
-            ("Rotation Speed", "rotation_speed", 0.01, 0.2, 0.01),
-            ("Ring Start Offset", "ring_start_offset", 0.5, 3.0, 0.1),
-            ("Ring Spacing", "ring_spacing", 1.0, 5.0, 0.2)
+            ("Star Size", "star_size", 0.01, 0.3, 0.005),
+            ("Ring Width", "ring_width", 0.2, 5.0, 0.1),
+            ("Rotation Speed", "rotation_speed", 0.01, 5.0, 0.1),
+            ("Ring Start Offset", "ring_start_offset", 0.5, 8.0, 0.2),
+            ("Ring Spacing", "ring_spacing", 0.5, 10.0, 0.2)
         ]
         
         # Fonts
