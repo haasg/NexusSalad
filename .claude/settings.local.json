@@ -18,6 +18,7 @@
       "Bash(\"venv\\Scripts\\python.exe\" wow_boss_sim.py)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "defaultMode": "acceptEdits"
   }
 }

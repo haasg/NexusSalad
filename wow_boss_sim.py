@@ -286,9 +286,13 @@ class WoWBossSimulation:
                     elif self.state == GameState.PAUSED:
                         self.state = GameState.PLAYING
                 elif event.key == pygame.K_r:
-                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                        # Shift+R for reset
+                    mods = pygame.key.get_mods()
+                    if mods & pygame.KMOD_SHIFT and mods & pygame.KMOD_CTRL:
+                        # Ctrl+Shift+R for full reset (clear everything)
                         self.reset()
+                    elif mods & pygame.KMOD_SHIFT:
+                        # Shift+R for soft reset (keep star positions)
+                        self.soft_reset()
                     else:
                         # R alone for rewind toggle
                         if self.state in [GameState.PLAYING, GameState.PAUSED] and len(self.history) > 0:
@@ -363,6 +367,24 @@ class WoWBossSimulation:
         self.current_simulation_time = 0
         self.rewind_frame_skip = 15  # Reset to default
     
+    def soft_reset(self):
+        """Reset simulation state but keep star positions"""
+        if len(self.stars) > 0:
+            # Reset each star to its initial position while keeping the placement
+            for star in self.stars:
+                star.x = star.start_x
+                star.y = star.start_y
+                star.angle = math.atan2(star.start_y - WINDOW_HEIGHT//2, star.start_x - WINDOW_WIDTH//2)
+                star.ring.expansion_level = 0
+            
+            # Reset simulation state
+            self.state = GameState.SETUP if len(self.stars) < 6 else GameState.PAUSED
+            self.simulation_start_time = 0
+            self.history.clear()
+            self.is_rewinding = False
+            self.rewind_index = 0
+            self.current_simulation_time = 0
+    
     def save_to_history(self):
         """Save current game state to history"""
         if self.state == GameState.PLAYING:
@@ -419,7 +441,8 @@ class WoWBossSimulation:
             instructions = [
                 "Click to place stars",
                 "Space to start when all 6 are placed",
-                "Shift+R to reset",
+                "Shift+R to reset simulation (keeps stars)",
+                "Ctrl+Shift+R to clear everything",
                 "Arrow keys to adjust parameters"
             ]
             for i, instruction in enumerate(instructions):
@@ -439,7 +462,8 @@ class WoWBossSimulation:
             instructions = [
                 "Space to pause",
                 "R to start rewind",
-                "Shift+R to reset"
+                "Shift+R to reset simulation (keeps stars)",
+                "Ctrl+Shift+R to clear everything"
             ]
             for i, instruction in enumerate(instructions):
                 text = self.small_font.render(instruction, True, WHITE)
@@ -457,7 +481,7 @@ class WoWBossSimulation:
                     "UP/DOWN arrows to adjust frame skip (+/- 5)",
                     "R to exit rewind mode",
                     "Space to resume from this point",
-                    "Shift+R to reset"
+                    "Shift+R to reset simulation (keeps stars)"
                 ]
                 for i, instruction in enumerate(instructions):
                     text = self.small_font.render(instruction, True, YELLOW)
@@ -469,7 +493,8 @@ class WoWBossSimulation:
                 instructions = [
                     "Space to resume",
                     "R to start rewind",
-                    "Shift+R to reset"
+                    "Shift+R to reset simulation (keeps stars)",
+                    "Ctrl+Shift+R to clear everything"
                 ]
                 for i, instruction in enumerate(instructions):
                     text = self.small_font.render(instruction, True, WHITE)
